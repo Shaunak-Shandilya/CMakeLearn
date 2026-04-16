@@ -1,0 +1,225 @@
+🧱 Method 3 — target_sources() (modular + scalable)
+🧠 What it really is
+
+Instead of defining everything in one place:
+
+add_executable(MyProj main.cpp foo.cpp)
+
+You create the target first, then attach things to it later:
+
+add_executable(MyProj)
+
+target_sources(MyProj
+    PRIVATE
+        main.cpp
+        foo.cpp
+)
+💡 Why this exists
+
+Because large projects don’t live in one file.
+
+You can split across directories:
+
+# root CMakeLists.txt
+add_executable(MyProj)
+
+add_subdirectory(src)
+add_subdirectory(utils)
+# src/CMakeLists.txt
+target_sources(MyProj PRIVATE main.cpp)
+# utils/CMakeLists.txt
+target_sources(MyProj PRIVATE helper.cpp)
+
+👉 Now multiple modules contribute to the same target.
+
+⚙️ Visibility still matters
+target_sources(MyProj PUBLIC foo.cpp)
+PRIVATE → only used internally
+PUBLIC → propagated (rare for .cpp, more relevant for headers)
+⚠️ Limits / gotchas
+Doesn’t organize dependencies → just files
+Can become messy if overused without structure
+Still manual listing
+🧠 When to use it
+Multi-folder project
+You want clean modular CMake files
+You don’t want one giant CMakeLists.txt
+🧱 Method 4 — file(GLOB ...) (automatic file collection)
+🧠 What it does
+file(GLOB SOURCES "src/*.cpp")
+
+add_executable(MyProj ${SOURCES})
+
+👉 CMake scans the folder and grabs all matching files.
+
+💡 Why people use it
+No need to manually list files
+Faster iteration when adding/removing files
+⚠️ The core problem
+
+CMake works in two phases:
+
+Configure (reads CMakeLists)
+Build
+
+👉 GLOB runs only during configure
+
+So:
+
+you add new.cpp
+CMake doesn’t notice
+build system doesn’t update
+🛠️ Fix (partial)
+file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+
+Now CMake tries to reconfigure when files change.
+
+⚠️ Still imperfect
+Slightly slower
+Not always reliable in complex setups
+Hides what files are actually in your build
+🧠 When to use it
+
+✅ Good:
+
+small personal projects
+rapid prototyping
+
+❌ Avoid:
+
+production / large teams
+anything where reproducibility matters
+🧱 Method 5 — File Sets (modern, clean, underused)
+🧠 What problem they solve
+
+Old CMake mixes:
+
+sources
+headers
+install rules
+
+File sets fix this by structuring files explicitly.
+
+🔧 Basic usage
+target_sources(MyProj
+    PRIVATE
+        FILE_SET my_sources
+        TYPE CXX_SOURCES
+        FILES
+            src/main.cpp
+            src/foo.cpp
+)
+📚 Header file sets (important)
+target_sources(MyProj
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS include
+        FILES
+            include/foo.hpp
+)
+💡 Why this is powerful
+Clearly separates:
+implementation (.cpp)
+interface (.hpp)
+Required for:
+proper install()
+exporting libraries
+Works well with IDEs
+⚙️ BASE_DIRS explained
+BASE_DIRS include
+
+👉 Tells CMake:
+
+“Headers live under this root”
+
+So includes like:
+
+#include "foo.hpp"
+
+work cleanly.
+
+⚠️ Limitations
+More verbose
+Not widely used in tutorials (yet)
+Overkill for tiny projects
+🧠 When to use it
+
+✅ Best for:
+
+libraries
+reusable components
+installable packages
+
+❌ Skip if:
+
+quick throwaway project
+🧱 Method 6 — Libraries (the real scaling solution)
+
+This is the most important concept after targets.
+
+🧠 The idea
+
+Instead of one giant executable:
+
+👉 Break your project into libraries
+
+🔧 Example
+add_library(core
+    src/foo.cpp
+)
+
+target_include_directories(core PUBLIC include)
+
+add_executable(MyProj
+    src/main.cpp
+)
+
+target_link_libraries(MyProj PRIVATE core)
+💡 What’s happening
+core = reusable module
+MyProj depends on it
+🧠 Why this is powerful
+1. Separation of concerns
+UI code
+logic
+utilities
+
+All separate
+
+2. Reusability
+same library → multiple executables
+3. Dependency propagation
+target_include_directories(core PUBLIC include)
+
+👉 means:
+
+anyone linking core automatically gets its include path
+
+⚙️ Types of libraries
+add_library(core STATIC ...)   # compiled into .a/.lib
+add_library(core SHARED ...)   # .so/.dll
+add_library(core INTERFACE)    # header-only
+🧠 Real-world structure
+project/
+├── app/
+├── core/
+├── graphics/
+└── CMakeLists.txt
+
+Each folder = its own library.
+
+⚠️ Limits / mistakes
+Don’t create too many tiny libraries
+Don’t mix responsibilities
+Avoid circular dependencies
+🔥 Key comparison (this is what you really need)
+Method	Best for	Weakness
+target_sources	modular structure	still manual
+GLOB	convenience	unreliable
+file sets	clean architecture	verbose
+libraries	real projects	requires design
+🧠 What actually matters
+
+If you remember only one thing:
+
+Folders don’t scale projects — libraries do
