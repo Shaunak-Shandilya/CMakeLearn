@@ -1,0 +1,71 @@
+🧠 First principle (don’t skip this)
+Source files (.cpp) → must be listed → compiled
+Header files (.h/.hpp) → optional to list → only for IDE visibility
+
+CMake does not need headers to build, but you often include them anyway.
+
+🧱 Method 1 — Directly list multiple source files (baseline)
+
+This is the simplest and most correct starting point.
+
+add_executable(MyProj
+    main.cpp
+    foo.cpp
+    bar.cpp
+)
+
+👉 This is:
+
+explicit
+predictable
+recommended for small/medium projects
+Adding headers (optional)
+add_executable(MyProj
+    main.cpp
+    foo.cpp
+    foo.hpp
+)
+
+👉 This:
+
+does NOT affect compilation
+just helps IDEs (CLion, VSCode, etc.)
+🧱 Method 2 — Split sources using variables
+set(SOURCES
+    main.cpp
+    foo.cpp
+)
+
+add_executable(MyProj ${SOURCES})
+
+👉 Why use this?
+
+cleaner when the list gets long
+reusable across targets
+
+⚠️ Limitation:
+
+still manual listing
+variables don’t add real structure
+🧱 Method 3 — target_sources() (modern, scalable)
+
+Instead of stuffing everything into add_executable, you attach sources later:
+
+add_executable(MyProj)
+
+target_sources(MyProj
+    PRIVATE
+        main.cpp
+        foo.cpp
+)
+
+👉 Why this is powerful:
+
+lets you incrementally build targets
+useful when splitting across multiple CMake files
+🧱 Method 4 — Folder-based using file(GLOB ...) ⚠️
+file(GLOB SOURCES "src/*.cpp")
+
+add_executable(MyProj ${SOURCES})
+
+👉 This auto-includes all .cpp files in a folder.
