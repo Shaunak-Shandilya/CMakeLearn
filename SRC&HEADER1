@@ -20,6 +20,7 @@ explicit
 predictable
 recommended for small/medium projects
 Adding headers (optional)
+
 add_executable(MyProj
     main.cpp
     foo.cpp
@@ -31,6 +32,7 @@ add_executable(MyProj
 does NOT affect compilation
 just helps IDEs (CLion, VSCode, etc.)
 🧱 Method 2 — Split sources using variables
+
 set(SOURCES
     main.cpp
     foo.cpp
@@ -64,8 +66,118 @@ target_sources(MyProj
 lets you incrementally build targets
 useful when splitting across multiple CMake files
 🧱 Method 4 — Folder-based using file(GLOB ...) ⚠️
+
 file(GLOB SOURCES "src/*.cpp")
 
 add_executable(MyProj ${SOURCES})
 
 👉 This auto-includes all .cpp files in a folder.
+
+❗ Why people warn against this
+
+CMake won’t automatically re-run when new files are added.
+
+So:
+
+you add new.cpp
+build fails or ignores it
+you must re-run CMake manually
+Safer version (still not perfect)
+file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+
+👉 This tells CMake:
+
+“Re-scan when files change”
+
+Still:
+
+slightly slower
+less explicit than manual listing
+🧱 Method 5 — File sets (modern CMake 3.23+ / 4.x)
+
+This is what you mentioned—file sets are the “new clean way.”
+
+target_sources(MyProj
+    PRIVATE
+        FILE_SET my_sources
+        TYPE CXX_SOURCES
+        FILES
+            main.cpp
+            foo.cpp
+)
+For headers (this is where file sets shine)
+
+target_sources(MyProj
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS include
+        FILES
+            include/foo.hpp
+)
+
+👉 Why this matters:
+
+clean separation of headers vs sources
+required for proper installation/exporting
+modern replacement for messy include handling
+🧱 Method 6 — Split into libraries (REAL scaling method)
+
+Instead of “linking folders,” you should do this:
+
+add_library(core
+    src/foo.cpp
+)
+
+target_include_directories(core PUBLIC include)
+
+add_executable(MyProj main.cpp)
+
+target_link_libraries(MyProj PRIVATE core)
+
+👉 This is how real projects scale:
+
+each folder = library
+then link them
+❌ What you cannot do (common misconceptions)
+❌ “Link a folder directly”
+
+You cannot do:
+
+add_executable(MyProj src/)
+
+CMake doesn’t treat folders as build units.
+
+❌ “Automatically include everything safely”
+
+There is no perfect auto-include-all-files system without tradeoffs.
+
+You must choose between:
+
+explicit listing ✅ (recommended)
+globbing ⚠️ (convenient, less safe)
+❌ Headers being compiled
+
+Headers:
+
+are not compiled
+are pulled in via #include
+🧠 When to use what
+Small project
+
+→ direct listing
+
+Medium project
+
+→ target_sources() + variables
+
+Large project
+
+→ split into libraries
+
+Experimental / fast iteration
+
+→ GLOB CONFIGURE_DEPENDS
+
+Modern packaging / install
+
+→ file sets
